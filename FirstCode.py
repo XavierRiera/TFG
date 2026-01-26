@@ -36,17 +36,19 @@ def mutar(nucleotid, p):
 
 
 # Realitzar un cicle de PCR duplicant tota sa cadena
+############## posar que original tambe muta
 def PCR_transition(cadena, p, q):
 
     cadena_post_PCR = []                                            # Nova cadena després de PCR
 
-    for base in cadena:
-        cadena_post_PCR.append(base)                                # Afegir sa cadena original a sa nova cadena
+    ########for base in cadena:
+        #cadena_post_PCR.append(base)                                # Afegir sa cadena original a sa nova cadena
 
     for base in cadena:
         if es_duplica(q):                                           # Comprovar si es nucleòtid es duplica amb probabilitat q
             base_nova = mutar(base, p)                              # Mutar es nucleòtid amb probabilitat p
             cadena_post_PCR.append(base_nova)                       # Afegir es nucleòtid mutat a sa nova cadena
+            cadena_post_PCR.append(base_nova)                       # Afegir es nucleòtid mutat a sa nova cadena (duplicat)
 
     return cadena_post_PCR                                          # Per tant acabam amb sa cadena duplicada (original) i sa mutada
 
@@ -110,15 +112,15 @@ def decidir_base(frequencies_quantificades):
 
 
 ##########################################################################################################################################################
-
+######## 2^B - 1 nromalització per quantificació
 if __name__ == "__main__":
     prints = False
     if prints:
-        cadena = generar_cadena(2)                                              # cadena inicial de longitud 1
+        cadena = generar_cadena(1)                                              # cadena inicial de longitud 1
         print("Cadena inicial:", cadena)
         print("Conteig inicial:", contador(cadena))
 
-        resultat = cicles_PCR(cadena, c=25, p=0.05, q=0.01)                    # 5 cicles, p = 0.05, q = 0.01
+        resultat = cicles_PCR(cadena, c=20, p=0.05, q=0.01)                    # 5 cicles, p = 0.05, q = 0.01
         print("Longitud final:", len(resultat))                                 # Longitud final de sa cadena
 
         conteig = contador(resultat)
@@ -127,19 +129,19 @@ if __name__ == "__main__":
         frequencies = normalitzar_conteig(conteig)
         print("Freqüències finals:", frequencies)
 
-        frequencies_quantificades = quantificar(frequencies, B=2)
+        frequencies_quantificades = quantificar(frequencies, B=1)
         print("Quantificació:", frequencies_quantificades)
     
     proves = True
     if proves:
         resultats = {}
-        p = 0.05                    # probabilitat de mutació
-        q = 0.01                    # error de duplicació
-        B = 4                       # bits de quantificació
-        N = 500                     # nombre d'experiments
-        n = 10                      # longitud de sa cadena inicial
+        p = 0.01                    # probabilitat de mutació
+        q = 0.00                    # error de duplicació
+        B = 10                       # bits de quantificació
+        N = 10                     # nombre d'experiments
+        n = 2                     # longitud de sa cadena inicial
 
-        valors_c = range(1, 31)     # de 1 a 30 cicles PCR
+        valors_c = range(1, 2)     # de 1 a 30 cicles PCR
 
         for c in valors_c:
             encerts = 0
@@ -151,10 +153,15 @@ if __name__ == "__main__":
                 resultat = cicles_PCR(cadena, c, p, q)
                 frequencies = normalitzar_conteig(contador(resultat))
                 frequencies_quantificades = quantificar(frequencies, B)
-                base_final = decidir_base(frequencies_quantificades)
+                base_final = decidir_base(frequencies)
 
                 if base_original == base_final:
                     encerts += 1
+                
+                print(cadena, base_original, base_final, resultat, frequencies, frequencies_quantificades)
+                # canviar cicle pcr 1 per 1, cada nucleotid de sa cadena es iid
+                # precisio és precisio de que tota sa cadena estigui be
+                # parameter tuning c, n, p , q , b
 
             precisio = encerts / N
             resultats[c] = precisio
@@ -171,4 +178,6 @@ if __name__ == "__main__":
         #plt.ylim(0, 1)
         #plt.grid()
         #plt.show()
+
+    print(int(1.1))
             
