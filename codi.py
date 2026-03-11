@@ -108,6 +108,37 @@ def poblacio_per_cadena(cadena, c, p, q):
     return poblacio
 
 
+# Generar codi
+def generar_codi(n, length):
+    codi = []
+    for _ in range(length):               
+        paraula = []
+        for _ in range(n):         
+            paraula.append(generar_cadena())
+        codi.append(paraula)
+    return codi
+
+
+# Distància de Hamming entre dues paraules
+def distancia_hamming(paraula1, paraula2):
+    return sum(el1 != el2 for el1, el2 in zip(paraula1, paraula2))
+
+# Predicció amb distància de Hamming: trobar sa paraula des codi més propera a sa predicció
+def predicció_amb_distancia_hamming(prediccio, codi):
+    minim_dist = float('inf')
+    millor_paraula = None
+
+    for idx in codi:
+        dist = distancia_hamming(prediccio, idx)
+
+        if dist < minim_dist:
+            minim_dist = dist
+            millor_paraula = idx
+
+    return millor_paraula, minim_dist
+
+
+
 #############################################################################################################################################################
 
 if __name__ == "__main__":
@@ -117,66 +148,32 @@ if __name__ == "__main__":
     n = 5
     B = 8
     N = 10000
-    ks = [1, 2, 5, 10, 20, 50, 100]
+    k = 30
+    length_codi = 10
 
-
+    errors_directes = 0      # Predicció directa incorrecta
+    errors_hamming = 0       # Hamming incorrecte
     
-    # Inicialitzar diccionaris per conttar errors
-    errors_seq = {}             # Error de seqüència (predicció completa incorrecta)
-    errors_base = {}            # Error de base (quantes bases estan malament en total)
-    for k in ks:
-        errors_seq[k] = 0
-        errors_base[k] = 0
+    codi = generar_codi(n, length_codi)         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! DEMANAR, es codi el faig de nou a cada iteració o una sola vegada i a ver quantes endevina amb aquest codi en concret?
 
-    # Fer N proves 
     for _ in range(N):
+        paraula_triada = random.choice(codi)
 
-        # Generar cadena de longitud n
-        original = []
-        for _ in range(n):
-            original.append(generar_cadena())       # genera o AAAA, CCCC, TTTT, GGGG
+        # PCR i predicció directa
+        poblacions = poblacio_per_cadena(paraula_triada, c, p, q)
+        prediccio = []
+        for idx in range(n):
+            base = decidir_base_mostreig_aleatori(poblacions[idx], k, B)
+            prediccio.append(base)
 
-        # Poblacions de cada base després de c cicles de PCR
-        poblacions = poblacio_per_cadena(original, c, p, q)
+        # Error predicció directa
+        if prediccio != paraula_triada:
+            errors_directes += 1
 
-        # Provar cada valor de k
-        for k in ks:
-            prediccions = []            # Prediccions per aquesta prova i aquest k
-            errors = 0                  # Bases encertades
+        # Hamming predicció
+        paraula_hamming, dist = predicció_amb_distancia_hamming(prediccio, codi)
+        if paraula_hamming != paraula_triada:
+            errors_hamming += 1
 
-            # Per cada base, decidir amb k samples
-            for idx in range(len(original)):
-                base_prediccio = decidir_base_mostreig_aleatori(poblacions[idx], k, B)      # Predicció de la base idx amb k mostres i B bits de quantització
-                prediccions.append(base_prediccio)
-
-                if base_prediccio != original[idx]:                                         # Si la predicció de la base idx és incorrecta, comptar un error --> error per base
-                    errors += 1
-
-            if prediccions != original:                                                     # Si la predicció és incorrecta, comptar un error --> error per seqüència
-                errors_seq[k] += 1
-
-            errors_base[k] += errors
-
-    # Calcular error rate per seqüència i per base
-    results = {}
-    for k in ks:
-        seq_err = errors_seq[k] / N             # Error rate seqüència --> quantes seqüències s'han decidit malament sobre es total de proves
-        base_err = errors_base[k] / (N * n)     # Error rate base --> quantes bases s'han decidit malament sobre el total de bases
-        results[k] = (seq_err, base_err)         # Guardar resultats en diccionari per cada k
-
-    print("k\tSeq Error Rate\tBase Error Rate")
-    for k in ks:
-        seq_err, base_err = results[k]
-        print(f"{k}\t{seq_err:.4f}\t\t{base_err:.4f}")
-
-    # plot sequence error vs k
-    plt.figure(figsize=(6,4))
-    seq_errors = [results[k][0] for k in ks]
-    plt.plot(ks, seq_errors, marker='o')
-    plt.xlabel("Sample size k")
-    plt.ylabel("Sequence error rate")
-    plt.title("Error rate vs number of samples")
-    plt.grid(True)
-    plt.savefig("sampling_error_vs_k.png", dpi=150, bbox_inches="tight")
-    print("\nSaved plot: sampling_error_vs_k.png")
-    plt.show()
+    print(f"Error rate predicció directa: {errors_directes / N:.4f}")
+    print(f"Error rate després de Hamming: {errors_hamming / N:.4f}")

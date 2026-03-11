@@ -108,20 +108,10 @@ def poblacio_per_cadena(cadena, c, p, q):
     return poblacio
 
 
-#############################################################################################################################################################
+# Calcular error en funció del nombre de mostres k
+def error_rate_vs_k(c, p, q, n, ks, B, N):
 
-if __name__ == "__main__":
-    c = 15
-    p = 0.05
-    q = 0.00
-    n = 5
-    B = 8
-    N = 10000
-    ks = [1, 2, 5, 10, 20, 50, 100]
-
-
-    
-    # Inicialitzar diccionaris per conttar errors
+    # Inicialitzar diccionaris per comptar errors
     errors_seq = {}             # Error de seqüència (predicció completa incorrecta)
     errors_base = {}            # Error de base (quantes bases estan malament en total)
     for k in ks:
@@ -134,7 +124,7 @@ if __name__ == "__main__":
         # Generar cadena de longitud n
         original = []
         for _ in range(n):
-            original.append(generar_cadena())       # genera o AAAA, CCCC, TTTT, GGGG
+            original.append(generar_cadena())
 
         # Poblacions de cada base després de c cicles de PCR
         poblacions = poblacio_per_cadena(original, c, p, q)
@@ -158,25 +148,54 @@ if __name__ == "__main__":
             errors_base[k] += errors
 
     # Calcular error rate per seqüència i per base
-    results = {}
+    result = {}
     for k in ks:
         seq_err = errors_seq[k] / N             # Error rate seqüència --> quantes seqüències s'han decidit malament sobre es total de proves
         base_err = errors_base[k] / (N * n)     # Error rate base --> quantes bases s'han decidit malament sobre el total de bases
-        results[k] = (seq_err, base_err)         # Guardar resultats en diccionari per cada k
+        result[k] = (seq_err, base_err)         # Guardar resultats en diccionari per cada k
+    
+    return result
 
-    print("k\tSeq Error Rate\tBase Error Rate")
-    for k in ks:
-        seq_err, base_err = results[k]
-        print(f"{k}\t{seq_err:.4f}\t\t{base_err:.4f}")
+#############################################################################################################################################################
 
-    # plot sequence error vs k
-    plt.figure(figsize=(6,4))
-    seq_errors = [results[k][0] for k in ks]
-    plt.plot(ks, seq_errors, marker='o')
+if __name__ == "__main__":
+    c = 15
+    p = 0.05
+    q = 0.00
+    n = 5
+    # Experiment parameters
+    N = 10000
+    ks = [1, 2, 5, 10, 20, 50, 100]
+
+    # Try several quantization bit-depths (change this list as desired)
+    bits_list = [1, 2, 4, 8]
+
+    # Collect results into a DataFrame
+    rows = []
+    for B in bits_list:
+        print(f"Running experiments for B={B} bits...")
+        results = error_rate_vs_k(c, p, q, n, ks, B, N)
+        for k in ks:
+            seq_err, base_err = results[k]
+            rows.append({'B': B, 'k': k, 'seq_err': seq_err, 'base_err': base_err})
+
+    df = pd.DataFrame(rows)
+    csv_name = "quantization_sampling_results.csv"
+    df.to_csv(csv_name, index=False)
+    print(f"Saved results CSV: {csv_name}")
+
+    # Plot sequence error vs k with one curve per B
+    plt.figure(figsize=(8,5))
+    for B in bits_list:
+        df_B = df[df['B'] == B].sort_values('k')
+        plt.plot(df_B['k'], df_B['seq_err'], marker='o', label=f"B={B}")    
+
     plt.xlabel("Sample size k")
     plt.ylabel("Sequence error rate")
-    plt.title("Error rate vs number of samples")
+    plt.title("Sequence Error Rate vs Sample Size for different quantization bits")
     plt.grid(True)
-    plt.savefig("sampling_error_vs_k.png", dpi=150, bbox_inches="tight")
-    print("\nSaved plot: sampling_error_vs_k.png")
+    plt.legend(title='Quantization bits')
+    plot_name = "sampling_error_vs_k_by_B.png"
+    plt.savefig(plot_name, dpi=150, bbox_inches="tight")
+    print(f"Saved plot: {plot_name}")
     plt.show()
